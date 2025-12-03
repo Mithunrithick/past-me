@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { auth } from './firebase'; // Import our auth service
+import { auth } from './firebase';
 import { 
   GoogleAuthProvider, 
   signInWithPopup, 
@@ -7,7 +7,6 @@ import {
   createUserWithEmailAndPassword 
 } from "firebase/auth";
 
-// This is the Google provider object
 const googleProvider = new GoogleAuthProvider();
 
 function Login() {
@@ -15,24 +14,20 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
 
-  // Function to handle Google Sign-In
   const handleGoogleSignIn = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      // User is signed in! The onAuthStateChanged in App.jsx will handle it.
     } catch (err) {
       setError(err.message);
     }
   };
 
-  // Function to handle Email/Password Sign-In
   const handleEmailSignIn = async (e) => {
-    e.preventDefault(); // Prevent form from refreshing the page
+    e.preventDefault(); 
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      // If sign-in fails, try to create an account
       if (err.code === 'auth/user-not-found') {
         try {
           await createUserWithEmailAndPassword(auth, email, password);
@@ -46,66 +41,70 @@ function Login() {
   };
 
   return (
-    // We use Tailwind classes for a professional look
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
-      <div className="w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-center mb-6">PastMe</h1>
-        <p className="text-center text-gray-400 mb-8">Sign in or create an account</p>
-
-        {/* Google Sign-In Button */}
+    <div className="w-full h-screen flex items-center justify-center relative z-50">
+      {/* --- GLASS CARD CONTAINER --- */}
+      <div className="w-full max-w-md p-8 bg-gray-900/60 backdrop-blur-xl border border-blue-500/30 rounded-2xl shadow-2xl shadow-blue-900/20">
+        
+        <h1 className="text-4xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 tracking-tighter">
+          PastMe
+        </h1>
+        <p className="text-center text-blue-200/60 mb-8 text-sm tracking-widest uppercase">
+          Initialize Neural Link
+        </p>
+        
         <button
           onClick={handleGoogleSignIn}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition duration-300"
+          className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all shadow-lg shadow-blue-600/30 hover:scale-[1.02]"
         >
-          Sign in with Google
+          Connect with Google
         </button>
 
         <div className="my-6 flex items-center justify-center">
-          <span className="border-b border-gray-600 w-1/4"></span>
-          <span className="px-4 text-gray-500">OR</span>
-          <span className="border-b border-gray-600 w-1/4"></span>
+          <span className="border-b border-blue-500/20 w-1/4"></span>
+          <span className="px-4 text-blue-300/50 text-xs uppercase">or manual entry</span>
+          <span className="border-b border-blue-500/20 w-1/4"></span>
         </div>
 
-        {/* Email/Password Form */}
         <form onSubmit={handleEmailSignIn}>
           <div className="mb-4">
-            <label className="block text-gray-400 text-sm font-bold mb-2" htmlFor="email">
-              Email
+            <label className="block text-blue-300 text-xs font-bold mb-2 uppercase tracking-wider">
+              Identity
             </label>
             <input
-              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              placeholder="user@pastme.ai"
+              className="w-full px-4 py-3 bg-gray-800/50 border border-blue-500/30 rounded-lg text-blue-100 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 placeholder-blue-500/30 transition-all"
               required
             />
           </div>
-          <div className="mb-6">
-            <label className="block text-gray-400 text-sm font-bold mb-2" htmlFor="password">
-              Password
+          <div className="mb-8">
+            <label className="block text-blue-300 text-xs font-bold mb-2 uppercase tracking-wider">
+              Passcode
             </label>
             <input
-              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="********"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              placeholder="••••••••"
+              className="w-full px-4 py-3 bg-gray-800/50 border border-blue-500/30 rounded-lg text-blue-100 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 placeholder-blue-500/30 transition-all"
               required
-              minLength={6} // Firebase requires 6+ characters
+              minLength={6} 
             />
           </div>
 
-          {/* Error Message */}
-          {error && <p className="text-red-500 text-xs italic mb-4">{error}</p>}
+          {error && (
+            <div className="p-3 mb-4 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-xs">
+              Error: {error}
+            </div>
+          )}
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300"
+            className="w-full bg-transparent border border-blue-500 text-blue-400 hover:bg-blue-500/10 font-bold py-3 px-4 rounded-lg transition-all"
           >
-            Sign In / Sign Up
+            Authenticate
           </button>
         </form>
       </div>

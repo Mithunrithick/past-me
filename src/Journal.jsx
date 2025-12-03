@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { db } from './firebase'; // Import our db service
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"; 
+import { db } from './firebase';
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import Typewriter from 'typewriter-effect';
+import { Sparkles, Mic, Square } from 'lucide-react'; // Added icons
 
+// Browser compatibility check
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const mic = SpeechRecognition ? new SpeechRecognition() : null;
-
-if (mic) {
-  mic.continuous = false; 
-  mic.interimResults = true;
-  mic.lang = 'en-US';
-}
 
 function Journal({ user }) {
   const [entryText, setEntryText] = useState('');
@@ -17,34 +13,37 @@ function Journal({ user }) {
   const [aiReply, setAiReply] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [speechSupport, setSpeechSupport] = useState(false);
-  const micRef = useRef(mic);
+  const micRef = useRef(null);
 
   useEffect(() => {
-    if (micRef.current) {
+    if (SpeechRecognition) {
       setSpeechSupport(true);
+      const mic = new SpeechRecognition();
+      mic.continuous = true; // FIX: Keep listening
+      mic.interimResults = true;
+      mic.lang = 'en-US';
+      
+      mic.onresult = (event) => {
+        const results = Array.from(event.results);
+        const latestResult = results[results.length - 1];
+        if (latestResult.isFinal) {
+           const transcript = latestResult[0].transcript;
+           setEntryText(prev => prev + ' ' + transcript);
+        }
+      };
+
+      mic.onend = () => { /* Optional: handle auto-stop */ };
+      mic.onerror = (event) => {
+        console.error("Speech error", event.error);
+        setIsRecording(false);
+      };
+      
+      micRef.current = mic;
     }
   }, []);
 
-  useEffect(() => {
-    if (!micRef.current) return;
-    const handleResult = (event) => {
-      const transcript = Array.from(event.results)
-        .map(result => result[0])
-        .map(result => result.transcript)
-        .join('');
-      setEntryText(transcript);
-    };
-    const handleEnd = () => setIsRecording(false);
-    const handleError = (event) => {
-      console.error("Speech recognition error", event.error);
-      setIsRecording(false);
-    };
-    micRef.current.onresult = handleResult;
-    micRef.current.onend = handleEnd;
-    micRef.current.onerror = handleError;
-  }, []); 
-
   const handleRecordClick = () => {
+    if (!micRef.current) return;
     if (isRecording) {
       micRef.current.stop();
       setIsRecording(false);
@@ -54,24 +53,24 @@ function Journal({ user }) {
         setIsRecording(true);
       } catch (err) {
         console.error("Mic start error:", err);
-        alert("Could not start microphone. Please check permissions.");
       }
     }
   };
 
   const handleSaveEntry = async (e) => {
     e.preventDefault();
-    if (entryText.trim() === '') return; 
+    if (entryText.trim() === '') return;
     
-    if (isRecording) {
+    if (isRecording && micRef.current) {
       micRef.current.stop();
       setIsRecording(false);
     }
 
     setLoading(true);
-    setAiReply('');
+    setAiReply(''); 
 
     try {
+      // Calls your existing Vercel function
       const response = await fetch('/api/processEntry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,78 +78,106 @@ function Journal({ user }) {
       });
 
       if (!response.ok) throw new Error('Failed to get AI analysis');
-      
+
       const data = await response.json();
-      const aiJson = JSON.parse(data.reply); 
+      
+      // Clean up markdown if present
+      const cleanJsonString = data.reply.replace(/```json|```/g, '').trim();
+      let aiJson;
+      try {
+          aiJson = JSON.parse(cleanJsonString);
+      } catch (e) {
+          aiJson = { reply: cleanJsonString, emotion: "Neutral", summary: "Log Entry", keywords: [] };
+      }
 
       setAiReply(aiJson.reply);
 
-      const entryCollection = collection(db, 'users', user.uid, 'entries');
-      
-      // --- UPDATE HERE: Add the sentiment score to the object ---
-      await addDoc(entryCollection, {
+      await addDoc(collection(db, 'users', user.uid, 'entries'), {
         content: entryText,
         createdAt: serverTimestamp(),
-        emotion: aiJson.emotion,
-        summary: aiJson.summary,
-        keywords: aiJson.keywords,
-        sentiment: aiJson.sentiment_score // <-- THIS LINE IS NEW
+        emotion: aiJson.emotion || "Neutral",
+        summary: aiJson.summary || "",
+        keywords: aiJson.keywords || [],
+        sentiment: aiJson.sentiment_score || 0 
       });
-      // --- END OF UPDATE ---
-
+      
       setEntryText('');
     } catch (err) {
       console.error("Error saving entry:", err);
-      setAiReply(`Error: ${err.message}`);
+      setAiReply(`System Error: ${err.message}`);
     }
     setLoading(false);
   };
 
   return (
-    <main className="w-full max-w-3xl mx-auto">
-      <form onSubmit={handleSaveEntry}>
+    <div className="flex flex-col gap-4 h-full relative">
+      
+      {/* Header */}
+      <div className="flex justify-between items-center border-b border-white/10 pb-3">
+        <h2 className="text-xl font-bold text-white tracking-widest flex items-center gap-2 font-tech">
+            <Sparkles className="text-blue-400" size={18} />
+            LOG ENTRY
+        </h2>
+        <div className="text-[12px] text-blue-400 font-tech">
+            {new Date().toLocaleDateString()}
+        </div>
+      </div>
+
+      <form onSubmit={handleSaveEntry} className="flex-1 flex flex-col relative">
         <textarea
           value={entryText}
           onChange={(e) => setEntryText(e.target.value)}
-          placeholder="What's on your mind? Or, click 'Record' to speak."
-          className="w-full h-64 p-4 bg-gray-800 border border-gray-700 rounded-lg text-white text-lg focus:outline-none focus:border-blue-500"
+          placeholder="Log your thoughts to the stars..."
+          // GLASS STYLING: bg-black/20 allowing stars to show through
+          className="w-full flex-1 min-h-[200px] p-4 bg-black/20 backdrop-blur-sm border border-blue-500/20 rounded-xl text-blue-100 text-lg focus:outline-none focus:border-blue-400/80 placeholder-blue-500/30 resize-none custom-scrollbar transition-all font-sans leading-relaxed"
           disabled={loading}
         />
-        
-        <div className="flex flex-col md:flex-row gap-4 mt-4">
-          <button
-            type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 disabled:bg-gray-500"
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save Entry'}
-          </button>
-          
-          {speechSupport && (
-            <button
-              type="button" 
-              onClick={handleRecordClick}
-              className={`w-full font-bold py-3 px-4 rounded-lg transition duration-300 ${
-                isRecording
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-            >
-              {isRecording ? 'Stop Recording' : 'Start Recording'}
-            </button>
-          )}
+
+        <div className="flex gap-4 mt-4">
+           {/* Upload Button */}
+           <button
+             type="submit"
+             className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.5)] hover:shadow-[0_0_25px_rgba(37,99,235,0.7)] disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-sm font-tech"
+             disabled={loading}
+           >
+             {loading ? 'Transmitting...' : 'Upload to Galaxy'}
+           </button>
+           
+           {/* Mic Button - Restored */}
+           {speechSupport && (
+             <button
+               type="button"
+               onClick={handleRecordClick}
+               className={`px-4 rounded-xl font-bold transition-all border flex items-center justify-center gap-2 ${
+                 isRecording
+                   ? 'bg-red-500/20 border-red-500 text-red-100 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]'
+                   : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/30'
+               }`}
+             >
+               {isRecording ? <Square size={18} /> : <Mic size={20} />}
+             </button>
+           )}
         </div>
-        
-        {isRecording && <p className="text-center mt-4 text-blue-400">Listening...</p>}
       </form>
 
+      {/* AI Reply Area - Sci-Fi Terminal Style */}
       {aiReply && (
-        <div className="mt-8 p-4 bg-gray-800 border border-blue-500 rounded-lg">
-          <p className="text-gray-400">PastMe says:</p>
-          <p className="text-lg italic">{aiReply}</p>
+        <div className="mt-4 p-4 bg-black/60 border-l-2 border-purple-500 rounded-r-xl backdrop-blur-md shadow-lg">
+          <p className="text-purple-400 text-[10px] mb-2 uppercase tracking-[0.2em] font-tech flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse"></span>
+            Incoming Transmission
+          </p>
+          <div className="text-purple-100 text-sm font-light leading-relaxed font-tech">
+            <Typewriter
+              onInit={(typewriter) => {
+                typewriter.changeDelay(20).typeString(aiReply).start();
+              }}
+              options={{ cursor: ' █' }}
+            />
+          </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 

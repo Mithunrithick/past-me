@@ -1,56 +1,35 @@
-import { useState, useEffect } from 'react';
-import { auth } from './firebase'; // Import our auth service
-import { onAuthStateChanged } from "firebase/auth";
-
-// Import all our components
+import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebase';
 import Login from './Login.jsx';
-import Navbar from './Navbar.jsx'; // <-- Import the new Navbar
-import Journal from './Journal.jsx'; 
-import Dashboard from './Dashboard.jsx';
+import MemoryGalaxy from './components/Galaxy/MemoryGalaxy.jsx';
 
 function App() {
-  const [user, setUser] = useState(null); // Tracks if the user is logged in
-  const [loading, setLoading] = useState(true); // Tracks if auth is still loading
-  const [view, setView] = useState('journal'); // <-- New state to track the active tab
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    // This is a Firebase listener that runs when the app loads
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setLoading(false);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Show a loading message while Firebase is checking auth
-  if (loading) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center bg-gray-900 text-white">
-        Loading...
-      </div>
-    );
+  // 1. Loading screen while Firebase checks credentials
+  if (authLoading) {
+     return <div className="w-full h-screen bg-black flex items-center justify-center text-blue-500 animate-pulse">Initializing Link...</div>;
   }
 
-  // If 'user' is null, show the Login component.
+  // 2. If no user, show Login
   if (!user) {
     return <Login />;
   }
 
-  // If we have a user, show the full application!
+  // 3. If user exists, show the Galaxy
   return (
-    <div className="w-full min-h-screen bg-gray-900 text-white">
-      {/* Render the Navbar at the top. Pass it the tools to manage the view. */}
-      <Navbar user={user} view={view} setView={setView} />
-
-      {/* Render the active component based on the 'view' state */}
-      <main className="max-w-7xl mx-auto p-8">
-        {view === 'journal' && (
-          <Journal user={user} />
-        )}
-        {view === 'dashboard' && (
-          <Dashboard user={user} />
-        )}
-      </main>
+    <div className="w-full h-screen bg-black overflow-hidden relative">
+      <MemoryGalaxy user={user} />
     </div>
   );
 }
