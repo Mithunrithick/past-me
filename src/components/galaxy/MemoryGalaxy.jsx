@@ -15,11 +15,12 @@ import CommandDock from './CommandDock.jsx';
 import EntryModal from './EntryModal.jsx';
 
 // --- Panel Imports ---
-import StarLog from './Panels/StarLog.jsx';
-import OraclePanel from './Panels/OraclePanel.jsx';
-import IdentityPanel from './Panels/IdentityPanel.jsx';
-import SentimentPanel from './Panels/SentimentPanel.jsx';
-import MoodExplorer from './Panels/MoodExplorer.jsx';
+// FIX: Changed 'Panels' to 'panels' to match actual folder name
+import StarLog from './panels/StarLog.jsx';
+import OraclePanel from './panels/OraclePanel.jsx';
+import IdentityPanel from './panels/IdentityPanel.jsx';
+import SentimentPanel from './panels/SentimentPanel.jsx';
+import MoodExplorer from './panels/MoodExplorer.jsx';
 
 // --- COMPONENT: CAPTAIN'S IDENTITY BADGE ---
 const UserBadge = ({ user }) => {
