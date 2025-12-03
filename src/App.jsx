@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase';
 import Login from './Login.jsx';
-import MemoryGalaxy from './components/Galaxy/MemoryGalaxy.jsx';
+import MemoryGalaxy from './components/galaxy/MemoryGalaxy.jsx';
 
 function App() {
   const [user, setUser] = useState(null);
