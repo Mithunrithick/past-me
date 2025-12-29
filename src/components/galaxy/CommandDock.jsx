@@ -16,7 +16,7 @@ const THEME_COLORS = {
     red:    { text: "text-red-400",    bg: "bg-red-500/20",    glow: "shadow-[0_0_15px_rgba(239,68,68,0.5)]",   border: "border-red-500/30" },
 };
 
-const DockItem = ({ icon: Icon, label, isActive, onClick, colorKey }) => {
+const DockItem = React.memo(({ icon: Icon, label, isActive, onClick, colorKey }) => {
   const [isHovered, setIsHovered] = useState(false);
   const theme = THEME_COLORS[colorKey];
   
@@ -97,7 +97,7 @@ const DockItem = ({ icon: Icon, label, isActive, onClick, colorKey }) => {
       )}
     </div>
   );
-};
+});
 
 const CommandDock = ({ activePanel, togglePanel, isBlackHoleMode }) => {
     if (isBlackHoleMode) return null;
