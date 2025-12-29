@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from './firebase';
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Typewriter from 'typewriter-effect';
-import { Sparkles, Mic, Square } from 'lucide-react'; // Added icons
+import { Sparkles, Mic, Square } from 'lucide-react';
+import { rateLimitedFetch } from './utils/apiCache';
 
 // Browser compatibility check
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -19,7 +20,7 @@ function Journal({ user }) {
     if (SpeechRecognition) {
       setSpeechSupport(true);
       const mic = new SpeechRecognition();
-      mic.continuous = true; // FIX: Keep listening
+      mic.continuous = true; // Keep listening
       mic.interimResults = true;
       mic.lang = 'en-US';
       
@@ -40,6 +41,14 @@ function Journal({ user }) {
       
       micRef.current = mic;
     }
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      if (micRef.current) {
+        micRef.current.abort();
+        micRef.current = null;
+      }
+    };
   }, []);
 
   const handleRecordClick = () => {
@@ -70,19 +79,15 @@ function Journal({ user }) {
     setAiReply(''); 
 
     try {
-      // Calls your existing Vercel function
-      const response = await fetch('/api/processEntry', {
+      // Calls your existing Vercel function with caching
+      const response = await rateLimitedFetch('/api/processEntry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: entryText }),
       });
-
-      if (!response.ok) throw new Error('Failed to get AI analysis');
-
-      const data = await response.json();
       
       // Clean up markdown if present
-      const cleanJsonString = data.reply.replace(/```json|```/g, '').trim();
+      const cleanJsonString = response.reply.replace(/```json|```/g, '').trim();
       let aiJson;
       try {
           aiJson = JSON.parse(cleanJsonString);

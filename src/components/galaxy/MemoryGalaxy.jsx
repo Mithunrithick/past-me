@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, lazy, Suspense } from 'react';
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,7 +6,7 @@ import { db, auth } from '../../firebase';
 import Journal from '../../Journal.jsx';
 import TheVoid from '../../TheVoid.jsx';
 import { signOut } from 'firebase/auth';
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestore";
 import { Scan, Database, Activity, FileText, X, User as UserIcon, LogOut, ShieldCheck } from 'lucide-react';
 
 // --- Component Imports ---
@@ -14,13 +14,22 @@ import GalaxyGraph from './GalaxyGraph.jsx';
 import CommandDock from './CommandDock.jsx';
 import EntryModal from './EntryModal.jsx';
 
-// --- Panel Imports ---
-// FIX: Changed 'Panels' to 'panels' to match actual folder name
-import StarLog from './panels/StarLog.jsx';
-import OraclePanel from './panels/OraclePanel.jsx';
-import IdentityPanel from './panels/IdentityPanel.jsx';
-import SentimentPanel from './panels/SentimentPanel.jsx';
-import MoodExplorer from './panels/MoodExplorer.jsx';
+// --- Lazy-loaded Panel Imports ---
+// Only load panels when requested to reduce initial bundle size
+const StarLog = lazy(() => import('./panels/StarLog.jsx'));
+const OraclePanel = lazy(() => import('./panels/OraclePanel.jsx'));
+const IdentityPanel = lazy(() => import('./panels/IdentityPanel.jsx'));
+const SentimentPanel = lazy(() => import('./panels/SentimentPanel.jsx'));
+const MoodExplorer = lazy(() => import('./panels/MoodExplorer.jsx'));
+
+// Loading fallback component
+const PanelLoader = () => (
+  <div className="flex items-center justify-center h-full text-blue-400">
+    <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity }}>
+      <span className="text-2xl">◆</span>
+    </motion.div>
+  </div>
+);
 
 // --- COMPONENT: CAPTAIN'S IDENTITY BADGE ---
 const UserBadge = ({ user }) => {
@@ -164,11 +173,17 @@ const MemoryGalaxy = ({ user }) => {
   const [init, setInit] = useState(false);
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(true);
+  const ENTRIES_PER_PAGE = 100; // Load max 100 entries for graph performance
 
   // --- Effects ---
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'users', user.uid, 'entries'), orderBy("createdAt", "desc"));
+    // OPTIMIZATION: Limit entries to prevent graph freeze
+    const q = query(
+      collection(db, 'users', user.uid, 'entries'), 
+      orderBy("createdAt", "desc"),
+      limit(ENTRIES_PER_PAGE)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const rawEntries = [];
       snapshot.forEach((doc) => rawEntries.push({ id: doc.id, ...doc.data() }));
@@ -287,7 +302,7 @@ const MemoryGalaxy = ({ user }) => {
         )}
 
         <AnimatePresence mode="wait">
-            {activePanel === 'log' && <motion.div key="log" initial={{ x: 300 }} animate={{ x: 0 }} exit={{ x: 300 }} className="absolute inset-0 pointer-events-none z-40"><StarLog entries={entries} searchTerm={searchTerm} onNodeClick={handleNodeClick} onClose={() => setActivePanel(null)}/></motion.div>}
+            {activePanel === 'log' && <motion.div key="log" initial={{ x: 300 }} animate={{ x: 0 }} exit={{ x: 300 }} className="absolute inset-0 pointer-events-none z-40"><Suspense fallback={<PanelLoader />}><StarLog entries={entries} searchTerm={searchTerm} onNodeClick={handleNodeClick} onClose={() => setActivePanel(null)}/></Suspense></motion.div>}
             
             {activePanel === 'journal' && !isBlackHoleMode && (
                 <motion.div 
@@ -303,10 +318,10 @@ const MemoryGalaxy = ({ user }) => {
                 </motion.div>
             )}
 
-            {activePanel === 'identity' && !isBlackHoleMode && <motion.div key="identity" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-4xl h-[80vh]"><IdentityPanel user={user} entries={entries} /></div></motion.div>}
-            {activePanel === 'discover' && !isBlackHoleMode && <motion.div key="discover" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-5xl h-[85vh]"><MoodExplorer entries={entries} /></div></motion.div>}
-            {activePanel === 'vitals' && !isBlackHoleMode && <motion.div key="vitals" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-4xl p-4"><SentimentPanel entries={entries} /></div></motion.div>}
-            {activePanel === 'oracle' && !isBlackHoleMode && <motion.div key="oracle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-2xl"><OraclePanel entries={entries} /></div></motion.div>}
+            {activePanel === 'identity' && !isBlackHoleMode && <motion.div key="identity" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-4xl h-[80vh]"><Suspense fallback={<PanelLoader />}><IdentityPanel user={user} entries={entries} /></Suspense></div></motion.div>}
+            {activePanel === 'discover' && !isBlackHoleMode && <motion.div key="discover" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-5xl h-[85vh]"><Suspense fallback={<PanelLoader />}><MoodExplorer entries={entries} /></Suspense></div></motion.div>}
+            {activePanel === 'vitals' && !isBlackHoleMode && <motion.div key="vitals" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-4xl p-4"><Suspense fallback={<PanelLoader />}><SentimentPanel entries={entries} /></Suspense></div></motion.div>}
+            {activePanel === 'oracle' && !isBlackHoleMode && <motion.div key="oracle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"><div className="pointer-events-auto w-full max-w-2xl"><Suspense fallback={<PanelLoader />}><OraclePanel entries={entries} /></Suspense></div></motion.div>}
         </AnimatePresence>
 
         {selectedNode && <EntryModal entry={selectedNode} onClose={() => setSelectedNode(null)} user={user} />}

@@ -142,4 +142,4 @@ const CommandDock = ({ activePanel, togglePanel, isBlackHoleMode }) => {
     )
 }
 
-export default CommandDock;
+export default React.memo(CommandDock);

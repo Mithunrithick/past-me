@@ -15,7 +15,7 @@
     "@tsparticles/slim": "^3.9.1",
     "autoprefixer": "^10.4.19",
     "dotenv": "^16.4.5",
-    "firebase": "^12.4.0",
+    "firebase": "^12.7.0",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.555.0",
     "postcss": "^8.4.38",

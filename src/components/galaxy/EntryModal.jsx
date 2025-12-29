@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { doc, deleteDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-// FIX: Adjusted path to point to src/firebase.js
-import { db } from '../../firebase'; 
+import { db } from '../../firebase';
+import { rateLimitedFetch, debounce } from '../../utils/apiCache'; 
 
 const EntryModal = ({ entry, onClose, user }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -25,11 +25,10 @@ const EntryModal = ({ entry, onClose, user }) => {
         if (!editContent.trim()) return;
         setIsSavingEdit(true);
         try {
-            const response = await fetch('/api/processEntry', {
+            const data = await rateLimitedFetch('/api/processEntry', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: editContent }),
             });
-            const data = await response.json();
             const aiJson = JSON.parse(data.reply);
             const entryRef = doc(db, 'users', user.uid, 'entries', entry.id);
             await updateDoc(entryRef, {
@@ -44,11 +43,10 @@ const EntryModal = ({ entry, onClose, user }) => {
     const handleReflect = async () => {
         setReflectLoading(true);
         try {
-            const response = await fetch('/api/getReflection', {
+            const data = await rateLimitedFetch('/api/getReflection', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ entryText: entry.content }),
             });
-            const data = await response.json();
             setReflection(data.question);
         } catch (err) { setReflection("Connection error."); }
         setReflectLoading(false);

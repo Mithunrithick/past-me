@@ -135,4 +135,11 @@ const GalaxyGraph = ({ entries, searchTerm, onNodeClick }) => {
   );
 };
 
-export default GalaxyGraph;
+export default React.memo(GalaxyGraph, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if entries or searchTerm change meaningfully
+  return (
+    prevProps.entries.length === nextProps.entries.length &&
+    prevProps.searchTerm === nextProps.searchTerm &&
+    prevProps.onNodeClick === nextProps.onNodeClick
+  );
+});
