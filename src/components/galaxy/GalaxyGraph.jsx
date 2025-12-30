@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
@@ -8,6 +8,8 @@ const GalaxyGraph = ({ entries, searchTerm, onNodeClick }) => {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [dimensions, setDimensions] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [hoverNode, setHoverNode] = useState(null);
+
+  const fgRef = useRef();
 
   useEffect(() => {
     initParticlesEngine(async (engine) => { await loadSlim(engine); }).then(() => setInit(true));
@@ -29,11 +31,15 @@ const GalaxyGraph = ({ entries, searchTerm, onNodeClick }) => {
       const entryId = entry.id;
       
       // 1. ENTRY NODE
+      // Calculate visual weight based on sentiment intensity
+      const sentimentIntensity = entry.sentiment ? Math.abs(entry.sentiment) : 0;
+      const nodeSize = 20 + (sentimentIntensity * 15); // Base 20, max +15
+
       nodes.push({
         id: entryId, group: 'entry',
         // Safety check for date
         name: entry.createdAt?.toDate ? new Date(entry.createdAt.toDate()).toLocaleDateString() : 'Memory',
-        val: 20, ...entry
+        val: nodeSize, ...entry
       });
 
       // 2. EMOTION NODE
@@ -81,11 +87,25 @@ const GalaxyGraph = ({ entries, searchTerm, onNodeClick }) => {
     );
   };
 
+  // Calculate Tooltip Position
+  const getTooltipPos = () => {
+    if (!hoverNode || !fgRef.current) return { left: -9999, top: -9999 };
+    // Translate graph coordinates (simulation space) to screen coordinates
+    const coords = fgRef.current.graph2ScreenCoords(hoverNode.x, hoverNode.y);
+    return {
+       left: coords.x + 15, // Offset slightly so cursor doesn't cover it
+       top: coords.y - 15
+    };
+  };
+
+  const tooltipPos = getTooltipPos();
+
   return (
     <div className="absolute inset-0 z-0">
         {init && <Particles id="tsparticles" options={particlesOptions} className="absolute inset-0 -z-20" />}
         
         <ForceGraph2D
+            ref={fgRef}
             width={dimensions.w} height={dimensions.h} 
             graphData={graphData} 
             nodeLabel="name" 
@@ -113,24 +133,61 @@ const GalaxyGraph = ({ entries, searchTerm, onNodeClick }) => {
                     if (!connected) alpha = 0.1;
                 }
 
+                // Node size calculation
+                const baseRadius = 4;
+                const radius = node.group === 'entry' ? baseRadius + ((node.val - 20) / 10) : baseRadius;
+
                 ctx.globalAlpha = alpha;
                 ctx.shadowColor = color;
                 ctx.shadowBlur = 15; 
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
+                ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
                 ctx.fillStyle = color;
                 ctx.fill();
                 ctx.shadowBlur = 0;
                 ctx.globalAlpha = 1;
             }}
 
-            onNodeHover={node => setHoverNode(node || null)}
+            onNodeHover={node => {
+                setHoverNode(node || null)
+            }}
             onNodeClick={node => onNodeClick(node)}
             
             linkDirectionalParticles={2}
             linkDirectionalParticleSpeed={0.005}
             linkColor={() => searchTerm ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.15)'} 
         />
+
+        {/* --- ENTRY PREVIEW TOOLTIP --- */}
+        {hoverNode && hoverNode.group === 'entry' && (
+           <div
+             className="absolute pointer-events-none z-50 p-4 bg-black/80 backdrop-blur-xl border border-blue-500/30 rounded-xl shadow-2xl max-w-xs"
+             style={{
+               left: tooltipPos.left,
+               top: tooltipPos.top
+             }}
+           >
+              <div className="flex items-center justify-between mb-2">
+                 <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{hoverNode.name}</span>
+                 {hoverNode.sentiment !== undefined && (
+                   <span className={`text-[10px] font-bold ${hoverNode.sentiment > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {hoverNode.sentiment > 0 ? '▲ POSITIVE' : '▼ NEGATIVE'}
+                   </span>
+                 )}
+              </div>
+
+              <p className="text-white text-sm font-serif italic mb-3 line-clamp-3 leading-relaxed">
+                "{hoverNode.summary || hoverNode.content}"
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                 <span className="px-2 py-0.5 bg-pink-500/20 border border-pink-500/30 rounded text-[10px] text-pink-300 uppercase">{hoverNode.emotion}</span>
+                 {hoverNode.keywords?.slice(0, 2).map((k, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded text-[10px] text-purple-300 uppercase">#{k}</span>
+                 ))}
+              </div>
+           </div>
+        )}
     </div>
   );
 };

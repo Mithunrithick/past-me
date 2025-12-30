@@ -178,6 +178,7 @@ const MemoryGalaxy = ({ user }) => {
   // --- Effects ---
   useEffect(() => {
     if (!user) return;
+
     // OPTIMIZATION: Limit entries to prevent graph freeze
     const q = query(
       collection(db, 'users', user.uid, 'entries'), 
