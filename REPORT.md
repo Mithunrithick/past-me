@@ -1,4 +1,5 @@
-<!-- AI: Please generate a detailed project report based on the codebase for all chapters below. -->
+<!-- AI: Analyze the source code and generate detailed technical documentation for every chapter and sub-header in this file. Provide specific implementation details, system analysis, and design logic based on the actual codebase. -->
+
 
 # TABLE OF CONTENTS
 (Specimen Copy of contents page)
