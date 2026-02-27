@@ -1,3 +1,5 @@
+<!-- AI: Please generate a detailed project report based on the codebase for all chapters below. -->
+
 # TABLE OF CONTENTS
 (Specimen Copy of contents page)
 
